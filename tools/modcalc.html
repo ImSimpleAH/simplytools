@@ -97,18 +97,23 @@
         const res = await fetch(proxyUrl);
         const data = await res.json();
         const html = data.contents;
-
-        const titleMatch = html.match(/<div class="workshopItemTitle">([\s\S]*?)<\/div>/);
-        const sizeMatch = html.match(/Size:<\/div>\s*<div class="rightcol">([\s\S]*?)<\/div>/);
-
-        return {
-          name: titleMatch ? titleMatch[1].trim() : '(Unknown)',
-          size: sizeMatch ? sizeMatch[1].trim() : 'Unknown'
-        };
+    
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+    
+        const nameEl = doc.querySelector('.workshopItemTitle');
+        const sizeLabelEls = [...doc.querySelectorAll('.detailsStatRight')];
+        const sizeEl = sizeLabelEls.find(el => el.previousElementSibling?.textContent.includes('Size'));
+    
+        const name = nameEl ? nameEl.textContent.trim() : '(Unknown)';
+        const size = sizeEl ? sizeEl.textContent.trim() : 'Unknown';
+    
+        return { name, size };
       } catch (e) {
         return { name: '(Error)', size: 'Error' };
       }
     }
+
   </script>
 </body>
 </html>
