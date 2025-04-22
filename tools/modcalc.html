@@ -54,6 +54,16 @@
         .error {
             color: red;
         }
+
+        .mod-list {
+            text-align: left;
+            margin-top: 20px;
+            padding: 0;
+        }
+
+        .mod-list li {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -61,10 +71,14 @@
         <h1>Mod Size Fetcher</h1>
         <input type="file" id="fileInput" accept=".html" />
         <div id="output" class="output"></div>
+        <ul id="modList" class="mod-list"></ul>
     </div>
 
     <script>
-        const steamApiUrl = "https://steamapi.xpaw.me/IPublishedFileService/GetDetails/v1/";
+        const steamApiUrl = "https://api.steampowered.com/IPublishedFileService/GetDetails/v1/";
+
+        // Your Steam Web API Key
+        const apiKey = 'YOUR_STEAM_API_KEY_HERE';
 
         // Function to parse the uploaded HTML file
         function parseModList(fileContent) {
@@ -81,30 +95,48 @@
             });
 
             if (modIds.length > 0) {
+                displayModList(modIds);
                 fetchModSizes(modIds);
             } else {
                 showError("No valid mod IDs found in the HTML file.");
             }
         }
 
-        // Function to fetch mod sizes from steamapi.xpaw.me
+        // Function to display the list of mod IDs
+        function displayModList(modIds) {
+            const modList = document.getElementById('modList');
+            modList.innerHTML = ''; // Clear any previous list
+
+            modIds.forEach(id => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `Mod ID: ${id}`;
+                modList.appendChild(listItem);
+            });
+        }
+
+        // Function to fetch mod sizes from Steam API
         async function fetchModSizes(modIds) {
             let totalSize = 0;
+            let processedCount = 0;
+
             for (const modId of modIds) {
                 const modSize = await fetchModSize(modId);
                 if (modSize) {
                     totalSize += modSize;
                 }
-            }
+                processedCount++;
 
-            // Display the total size
-            const outputDiv = document.getElementById('output');
-            outputDiv.textContent = `Total Mod Size: ${(totalSize / 1048576).toFixed(2)} MB`; // Convert to MB
+                if (processedCount === modIds.length) {
+                    // After all mods have been processed, update the output
+                    const outputDiv = document.getElementById('output');
+                    outputDiv.textContent = `Total Mod Size: ${(totalSize / 1048576).toFixed(2)} MB`; // Convert to MB
+                }
+            }
         }
 
-        // Function to fetch individual mod size from steamapi.xpaw.me
+        // Function to fetch individual mod size from Steam Web API
         async function fetchModSize(modId) {
-            const apiUrl = `${steamApiUrl}?publishedfileids[]=${modId}`;
+            const apiUrl = `${steamApiUrl}?key=${apiKey}&publishedfileids[]=${modId}`;
 
             try {
                 const response = await fetch(apiUrl);
