@@ -8,22 +8,27 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
-            padding: 0;
-            background-color: #f4f4f9;
+            background-color: #f0f0f0;
         }
         h1 {
             color: #333;
+            text-align: center;
         }
-        form {
-            margin-bottom: 20px;
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
         }
-        #mod-links {
-            margin-top: 20px;
-        }
-        #total-size {
-            margin-top: 20px;
-            font-size: 1.2em;
-            font-weight: bold;
+        #file-input {
+            width: 100%;
+            padding: 10px;
+            margin: 20px 0;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
         }
         button {
             padding: 10px 20px;
@@ -32,24 +37,37 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            width: 100%;
+            font-size: 16px;
         }
         button:hover {
             background-color: #0056b3;
+        }
+        #mod-links {
+            margin-top: 20px;
+        }
+        #total-size {
+            margin-top: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <h1>Mod Size Calculator</h1>
-    <p>Upload your HTML file containing mod links to calculate the total size of all mods.</p>
+    <div class="container">
+        <h1>Mod Size Calculator</h1>
+        <p>Upload an HTML file with your mod list, and we'll calculate the total size of all mods.</p>
 
-    <form id="file-form" enctype="multipart/form-data">
-        <input type="file" id="file-input" accept=".html" required />
-        <button type="submit">Upload HTML</button>
-    </form>
+        <form id="file-form" enctype="multipart/form-data">
+            <input type="file" id="file-input" accept=".html" required />
+            <button type="submit">Upload HTML</button>
+        </form>
 
-    <div id="mod-links"></div>
-    <div id="total-size"></div>
+        <div id="mod-links"></div>
+        <div id="total-size"></div>
+    </div>
 
     <script>
         document.getElementById("file-form").addEventListener("submit", function (event) {
@@ -65,7 +83,7 @@
                 };
                 reader.readAsText(file);
             } else {
-                alert("Please upload an HTML file.");
+                alert("Please upload a valid HTML file.");
             }
         });
 
