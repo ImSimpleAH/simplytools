@@ -98,29 +98,22 @@
         const data = await res.json();
         const html = data.contents;
     
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+        // Extract the mod name
+        const titleMatch = html.match(/<div[^>]*class="workshopItemTitle"[^>]*>(.*?)<\/div>/);
     
-        // Get mod name
-        const nameEl = doc.querySelector('.workshopItemTitle');
-        const name = nameEl ? nameEl.textContent.trim() : '(Unknown)';
+        // Extract the mod size (more flexible)
+        const sizeMatch = html.match(/<div[^>]*>Size:<\/div>\s*<div[^>]*>(.*?)<\/div>/i);
     
-        // Try to find the "Size" label in all rows
-        const stats = [...doc.querySelectorAll('.detailsStatRight')];
-        let size = 'Unknown';
-        stats.forEach((el) => {
-          const label = el.previousElementSibling;
-          if (label && label.textContent.trim().toLowerCase() === 'size') {
-            size = el.textContent.trim();
-          }
-        });
-    
-        return { name, size };
+        return {
+          name: titleMatch ? titleMatch[1].trim() : '(Unknown)',
+          size: sizeMatch ? sizeMatch[1].replace(/<[^>]+>/g, '').trim() : 'Unknown'
+        };
       } catch (e) {
-        console.error('Error fetching mod:', url, e);
+        console.error('Error fetching mod details:', e);
         return { name: '(Error)', size: 'Error' };
       }
     }
+
 
 
   </script>
