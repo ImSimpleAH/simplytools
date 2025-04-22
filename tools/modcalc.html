@@ -3,130 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mod Size Calculator</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f0f0f0;
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: #fff;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-        }
-        #file-input {
-            width: 100%;
-            padding: 10px;
-            margin: 20px 0;
-            font-size: 16px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #mod-links {
-            margin-top: 20px;
-        }
-        #total-size {
-            margin-top: 20px;
-            font-size: 1.5em;
-            font-weight: bold;
-            text-align: center;
-        }
-    </style>
+    <title>Mod Size Fetcher</title>
 </head>
 <body>
-
-    <div class="container">
-        <h1>Mod Size Calculator</h1>
-        <p>Upload an HTML file with your mod list, and we'll calculate the total size of all mods.</p>
-
-        <form id="file-form" enctype="multipart/form-data">
-            <input type="file" id="file-input" accept=".html" required />
-            <button type="submit">Upload HTML</button>
-        </form>
-
-        <div id="mod-links"></div>
-        <div id="total-size"></div>
-    </div>
-
+    <h1>Mod Size Fetcher</h1>
+    <input type="file" id="fileInput" accept=".html" />
+    <div id="output"></div>
+    
     <script>
-        document.getElementById("file-form").addEventListener("submit", function (event) {
-            event.preventDefault();
-            let file = document.getElementById("file-input").files[0];
-            if (file && file.type === "text/html") {
-                let reader = new FileReader();
-                reader.onload = function (e) {
-                    let content = e.target.result;
-                    let modLinks = extractModLinks(content);
-                    displayModLinks(modLinks);
-                    calculateTotalSize(modLinks); // Automatically calculate size when links are extracted
+        const steamApiUrl = "https://steamapi.xpaw.me/IPublishedFileService/GetDetails/v1/";
+
+        // Function to parse the uploaded HTML file
+        function parseModList(fileContent) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(fileContent, 'text/html');
+            const modLinks = doc.querySelectorAll('a[href^="https://steamcommunity.com/sharedfiles/filedetails/?id="]');
+            
+            const modIds = [];
+            modLinks.forEach(link => {
+                const match = link.href.match(/id=(\d+)/);
+                if (match) {
+                    modIds.push(match[1]);
+                }
+            });
+
+            fetchModSizes(modIds);
+        }
+
+        // Function to fetch mod sizes from steamapi.xpaw.me
+        async function fetchModSizes(modIds) {
+            let totalSize = 0;
+            for (const modId of modIds) {
+                const modSize = await fetchModSize(modId);
+                if (modSize) {
+                    totalSize += modSize;
+                }
+            }
+
+            // Display the total size
+            const outputDiv = document.getElementById('output');
+            outputDiv.textContent = `Total Mod Size: ${(totalSize / 1048576).toFixed(2)} MB`; // Convert to MB
+        }
+
+        // Function to fetch individual mod size from steamapi.xpaw.me
+        async function fetchModSize(modId) {
+            const apiUrl = `${steamApiUrl}?publishedfileids[]=${modId}`;
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                const modSize = data.response.publishedfiledetails[0]?.file_size;
+                if (modSize) {
+                    return modSize; // Return the size in bytes
+                } else {
+                    console.error(`Could not retrieve size for mod ID ${modId}`);
+                    return 0;
+                }
+            } catch (error) {
+                console.error(`Error fetching mod size for mod ID ${modId}:`, error);
+                return 0;
+            }
+        }
+
+        // Handle file upload
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file && file.type === 'text/html') {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    parseModList(e.target.result);
                 };
                 reader.readAsText(file);
             } else {
                 alert("Please upload a valid HTML file.");
             }
         });
-
-        function extractModLinks(htmlContent) {
-            let parser = new DOMParser();
-            let doc = parser.parseFromString(htmlContent, "text/html");
-            let links = doc.querySelectorAll("a"); // Assuming mod links are in <a> tags
-            return Array.from(links).map(link => link.href);
-        }
-
-        async function fetchModSize(modUrl) {
-            const apiUrl = `https://api.modrepository.com/getModDetails?url=${encodeURIComponent(modUrl)}`; // Replace with real API URL
-            try {
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-                return data.size; // Assuming the size is in 'size' field
-            } catch (error) {
-                console.error('Error fetching mod size:', error);
-                return 0; // If there's an error, assume size 0
-            }
-        }
-
-        async function calculateTotalSize(modLinks) {
-            let totalSize = 0;
-            for (let link of modLinks) {
-                const size = await fetchModSize(link);
-                totalSize += size;
-            }
-            document.getElementById("total-size").textContent = `Total Size: ${totalSize} MB`;
-        }
-
-        function displayModLinks(modLinks) {
-            const modLinksContainer = document.getElementById("mod-links");
-            modLinksContainer.innerHTML = '';  // Clear any previous content
-
-            // Display links
-            modLinks.forEach((link, index) => {
-                const linkElement = document.createElement("p");
-                linkElement.textContent = `Mod Link: ${link}`;
-                modLinksContainer.appendChild(linkElement);
-            });
-        }
     </script>
-
 </body>
 </html>
