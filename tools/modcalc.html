@@ -1,121 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Modpack Size Calculator | SimplyTools</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
-    .container { background: white; padding: 20px; border-radius: 10px; max-width: 800px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    h1 { text-align: center; }
-    input[type="file"], button { display: block; margin: 20px auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-    th { background: #eee; }
-    #total { font-weight: bold; margin-top: 20px; text-align: center; }
-    nav { text-align: center; margin-bottom: 30px; }
-    nav a { margin: 0 15px; text-decoration: none; color: #333; font-weight: bold; }
-    nav a:hover { text-decoration: underline; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mod Size Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        #mod-links {
+            margin-top: 20px;
+        }
+        #total-size {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <nav>
-      <a href="../index.html">Home</a>
-    </nav>
-    <h1>Arma 3 Modpack Size Calculator</h1>
-    <input type="file" id="fileInput" accept=".html">
-    <button id="confirmBtn" disabled>Confirm & Scan Mods</button>
-    <table id="modTable">
-      <thead>
-        <tr>
-          <th>Mod Name</th>
-          <th>Steam URL</th>
-          <th>Size</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div id="total"></div>
-  </div>
 
-  <script>
-    let modUrls = [];
-    const fileInput = document.getElementById('fileInput');
-    const confirmBtn = document.getElementById('confirmBtn');
-    const modTable = document.querySelector('#modTable tbody');
-    const totalDisplay = document.getElementById('total');
+    <h1>Mod Size Calculator</h1>
+    <p>Upload your HTML file containing mod links to calculate the total size of all mods.</p>
 
-    fileInput.addEventListener('change', event => {
-      const file = event.target.files[0];
-      if (file && file.name.endsWith('.html')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(reader.result, 'text/html');
-          const links = [...doc.querySelectorAll('a[href*="steamcommunity.com/sharedfiles/filedetails/?id="]')];
-          modUrls = links.map(link => link.href);
-          confirmBtn.disabled = false;
-        };
-        reader.readAsText(file);
-      } else {
-        alert('Please upload a valid .html file.');
-      }
-    });
+    <form id="file-form" enctype="multipart/form-data">
+        <input type="file" id="file-input" accept=".html" required />
+        <button type="submit">Upload HTML</button>
+    </form>
 
-    confirmBtn.addEventListener('click', async () => {
-      modTable.innerHTML = '';
-      totalDisplay.textContent = '';
-      let totalBytes = 0;
+    <div id="mod-links"></div>
+    <div id="total-size"></div>
 
-      for (const url of modUrls) {
-        const data = await fetchModDetails(url);
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${data.name}</td>
-          <td><a href="${url}" target="_blank">Link</a></td>
-          <td>${data.size}</td>
-        `;
-        modTable.appendChild(row);
+    <script>
+        document.getElementById("file-form").addEventListener("submit", function (event) {
+            event.preventDefault();
+            let file = document.getElementById("file-input").files[0];
+            if (file && file.type === "text/html") {
+                let reader = new FileReader();
+                reader.onload = function (e) {
+                    let content = e.target.result;
+                    let modLinks = extractModLinks(content);
+                    displayModLinks(modLinks);
+                    calculateTotalSize(modLinks); // Automatically calculate size when links are extracted
+                };
+                reader.readAsText(file);
+            } else {
+                alert("Please upload an HTML file.");
+            }
+        });
 
-        const byteMatch = data.size.match(/([\d.]+)\s?(GB|MB|KB)/i);
-        if (byteMatch) {
-          let [_, val, unit] = byteMatch;
-          val = parseFloat(val);
-          if (unit.toUpperCase() === 'GB') totalBytes += val * 1024;
-          else if (unit.toUpperCase() === 'MB') totalBytes += val;
-          else if (unit.toUpperCase() === 'KB') totalBytes += val / 1024;
+        function extractModLinks(htmlContent) {
+            let parser = new DOMParser();
+            let doc = parser.parseFromString(htmlContent, "text/html");
+            let links = doc.querySelectorAll("a"); // Assuming mod links are in <a> tags
+            return Array.from(links).map(link => link.href);
         }
-      }
 
-      totalDisplay.textContent = `Total Size: ${totalBytes.toFixed(2)} MB`;
-    });
+        async function fetchModSize(modUrl) {
+            const apiUrl = `https://api.modrepository.com/getModDetails?url=${encodeURIComponent(modUrl)}`; // Replace with real API URL
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                return data.size; // Assuming the size is in 'size' field
+            } catch (error) {
+                console.error('Error fetching mod size:', error);
+                return 0; // If there's an error, assume size 0
+            }
+        }
 
-    async function fetchModDetails(url) {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      try {
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        const html = data.contents;
-    
-        // Extract the mod name
-        const titleMatch = html.match(/<div[^>]*class="workshopItemTitle"[^>]*>(.*?)<\/div>/);
-    
-        // Extract the mod size (more flexible)
-        const sizeMatch = html.match(/<div[^>]*>Size:<\/div>\s*<div[^>]*>(.*?)<\/div>/i);
-    
-        return {
-          name: titleMatch ? titleMatch[1].trim() : '(Unknown)',
-          size: sizeMatch ? sizeMatch[1].replace(/<[^>]+>/g, '').trim() : 'Unknown'
-        };
-      } catch (e) {
-        console.error('Error fetching mod details:', e);
-        return { name: '(Error)', size: 'Error' };
-      }
-    }
+        async function calculateTotalSize(modLinks) {
+            let totalSize = 0;
+            for (let link of modLinks) {
+                const size = await fetchModSize(link);
+                totalSize += size;
+            }
+            document.getElementById("total-size").textContent = `Total Size: ${totalSize} MB`;
+        }
 
+        function displayModLinks(modLinks) {
+            const modLinksContainer = document.getElementById("mod-links");
+            modLinksContainer.innerHTML = '';  // Clear any previous content
 
+            // Display links
+            modLinks.forEach((link, index) => {
+                const linkElement = document.createElement("p");
+                linkElement.textContent = `Mod Link: ${link}`;
+                modLinksContainer.appendChild(linkElement);
+            });
+        }
+    </script>
 
-  </script>
 </body>
 </html>
