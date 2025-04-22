@@ -3,22 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arma 3 Modpack Size Calculator</title>
+  <title>Modpack Size Calculator | SimplyTools</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
     .container { background: white; padding: 20px; border-radius: 10px; max-width: 800px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     h1 { text-align: center; }
-    input[type="file"] { display: block; margin: 20px auto; }
+    input[type="file"], button { display: block; margin: 20px auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
     th { background: #eee; }
     #total { font-weight: bold; margin-top: 20px; text-align: center; }
+    nav { text-align: center; margin-bottom: 30px; }
+    nav a { margin: 0 15px; text-decoration: none; color: #333; font-weight: bold; }
+    nav a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <div class="container">
+    <nav>
+      <a href="../index.html">Home</a>
+    </nav>
     <h1>Arma 3 Modpack Size Calculator</h1>
     <input type="file" id="fileInput" accept=".html">
+    <button id="confirmBtn" disabled>Confirm & Scan Mods</button>
     <table id="modTable">
       <thead>
         <tr>
@@ -33,7 +40,9 @@
   </div>
 
   <script>
+    let modUrls = [];
     const fileInput = document.getElementById('fileInput');
+    const confirmBtn = document.getElementById('confirmBtn');
     const modTable = document.querySelector('#modTable tbody');
     const totalDisplay = document.getElementById('total');
 
@@ -45,8 +54,8 @@
           const parser = new DOMParser();
           const doc = parser.parseFromString(reader.result, 'text/html');
           const links = [...doc.querySelectorAll('a[href*="steamcommunity.com/sharedfiles/filedetails/?id="]')];
-          const modUrls = links.map(link => ({ url: link.href, name: link.textContent.trim() }));
-          fetchSizes(modUrls);
+          modUrls = links.map(link => link.href);
+          confirmBtn.disabled = false;
         };
         reader.readAsText(file);
       } else {
@@ -54,21 +63,22 @@
       }
     });
 
-    async function fetchSizes(mods) {
+    confirmBtn.addEventListener('click', async () => {
       modTable.innerHTML = '';
+      totalDisplay.textContent = '';
       let totalBytes = 0;
 
-      for (const mod of mods) {
-        const size = await getWorkshopModSize(mod.url);
+      for (const url of modUrls) {
+        const data = await fetchModDetails(url);
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${mod.name || '(Unknown)'}</td>
-          <td><a href="${mod.url}" target="_blank">Link</a></td>
-          <td>${size}</td>
+          <td>${data.name}</td>
+          <td><a href="${url}" target="_blank">Link</a></td>
+          <td>${data.size}</td>
         `;
         modTable.appendChild(row);
 
-        const byteMatch = size.match(/([\d.]+)\s?(GB|MB|KB)/i);
+        const byteMatch = data.size.match(/([\d.]+)\s?(GB|MB|KB)/i);
         if (byteMatch) {
           let [_, val, unit] = byteMatch;
           val = parseFloat(val);
@@ -79,18 +89,24 @@
       }
 
       totalDisplay.textContent = `Total Size: ${totalBytes.toFixed(2)} MB`;
-    }
+    });
 
-    async function getWorkshopModSize(url) {
+    async function fetchModDetails(url) {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
       try {
         const res = await fetch(proxyUrl);
         const data = await res.json();
         const html = data.contents;
-        const sizeMatch = html.match(/<div class="detailsStatsContainer.*?>[\s\S]*?Size:<\/div>\s*<div class="rightcol">(.*?)<\/div>/);
-        return sizeMatch ? sizeMatch[1].trim() : 'Unknown';
+
+        const titleMatch = html.match(/<div class="workshopItemTitle">([\s\S]*?)<\/div>/);
+        const sizeMatch = html.match(/Size:<\/div>\s*<div class="rightcol">([\s\S]*?)<\/div>/);
+
+        return {
+          name: titleMatch ? titleMatch[1].trim() : '(Unknown)',
+          size: sizeMatch ? sizeMatch[1].trim() : 'Unknown'
+        };
       } catch (e) {
-        return 'Error';
+        return { name: '(Error)', size: 'Error' };
       }
     }
   </script>
