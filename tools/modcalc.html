@@ -62,8 +62,33 @@
         }
 
         .mod-list li {
+            margin-bottom: 15px;
+        }
+
+        .mod-info {
+            margin: 10px 0;
+        }
+
+        .mod-name {
+            font-weight: bold;
             margin-bottom: 5px;
         }
+
+        .mod-size {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .mod-link {
+            margin-top: 5px;
+        }
+
+        .total-size {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
@@ -72,6 +97,7 @@
         <input type="file" id="fileInput" accept=".html" />
         <div id="output" class="output"></div>
         <ul id="modList" class="mod-list"></ul>
+        <div id="totalSize" class="total-size"></div>
     </div>
 
     <script>
@@ -96,7 +122,7 @@
 
             if (modIds.length > 0) {
                 displayModList(modIds);
-                fetchModSizes(modIds);
+                fetchModDetails(modIds);
             } else {
                 showError("No valid mod IDs found in the HTML file.");
             }
@@ -114,44 +140,68 @@
             });
         }
 
-        // Function to fetch mod sizes from Steam API
-        async function fetchModSizes(modIds) {
+        // Function to fetch mod details (name, size, and link)
+        async function fetchModDetails(modIds) {
             let totalSize = 0;
             let processedCount = 0;
 
             for (const modId of modIds) {
-                const modSize = await fetchModSize(modId);
-                if (modSize) {
-                    totalSize += modSize;
+                const modDetails = await fetchModDetailsFromAPI(modId);
+                if (modDetails) {
+                    displayModInfo(modDetails);
+                    totalSize += modDetails.size;
                 }
                 processedCount++;
 
                 if (processedCount === modIds.length) {
                     // After all mods have been processed, update the output
-                    const outputDiv = document.getElementById('output');
+                    const outputDiv = document.getElementById('totalSize');
                     outputDiv.textContent = `Total Mod Size: ${(totalSize / 1048576).toFixed(2)} MB`; // Convert to MB
                 }
             }
         }
 
-        // Function to fetch individual mod size from Steam Web API
-        async function fetchModSize(modId) {
+        // Function to fetch mod details from the Steam API
+        async function fetchModDetailsFromAPI(modId) {
             const apiUrl = `${steamApiUrl}?key=${apiKey}&publishedfileids[]=${modId}`;
 
             try {
                 const response = await fetch(apiUrl);
                 const data = await response.json();
-                const modSize = data.response.publishedfiledetails[0]?.file_size;
-                if (modSize) {
-                    return modSize; // Return the size in bytes
+                const modDetails = data.response.publishedfiledetails[0];
+
+                if (modDetails) {
+                    return {
+                        name: modDetails.title,
+                        size: modDetails.file_size,  // size in bytes
+                        link: `https://steamcommunity.com/sharedfiles/filedetails/?id=${modId}`
+                    };
                 } else {
-                    console.error(`Could not retrieve size for mod ID ${modId}`);
-                    return 0;
+                    console.error(`Could not retrieve details for mod ID ${modId}`);
+                    return null;
                 }
             } catch (error) {
-                console.error(`Error fetching mod size for mod ID ${modId}:`, error);
-                return 0;
+                console.error(`Error fetching mod details for mod ID ${modId}:`, error);
+                return null;
             }
+        }
+
+        // Function to display the mod details (name, size, and link)
+        function displayModInfo(modDetails) {
+            const modList = document.getElementById('modList');
+            const listItem = document.createElement('li');
+
+            listItem.innerHTML = `
+                <div class="mod-info">
+                    <div class="mod-name">${modDetails.name}</div>
+                    <div class="mod-size">Size: ${(modDetails.size / 1048576).toFixed(2)} MB</div>
+                    <div class="mod-link">
+                        <a href="${modDetails.link}" target="_blank">Link to Mod</a>
+                    </div>
+                </div>
+            `;
+
+            modList.appendChild(listItem);
         }
 
         // Show error message
