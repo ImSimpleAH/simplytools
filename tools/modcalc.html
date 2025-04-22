@@ -101,18 +101,27 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
     
+        // Get mod name
         const nameEl = doc.querySelector('.workshopItemTitle');
-        const sizeLabelEls = [...doc.querySelectorAll('.detailsStatRight')];
-        const sizeEl = sizeLabelEls.find(el => el.previousElementSibling?.textContent.includes('Size'));
-    
         const name = nameEl ? nameEl.textContent.trim() : '(Unknown)';
-        const size = sizeEl ? sizeEl.textContent.trim() : 'Unknown';
+    
+        // Try to find the "Size" label in all rows
+        const stats = [...doc.querySelectorAll('.detailsStatRight')];
+        let size = 'Unknown';
+        stats.forEach((el) => {
+          const label = el.previousElementSibling;
+          if (label && label.textContent.trim().toLowerCase() === 'size') {
+            size = el.textContent.trim();
+          }
+        });
     
         return { name, size };
       } catch (e) {
+        console.error('Error fetching mod:', url, e);
         return { name: '(Error)', size: 'Error' };
       }
     }
+
 
   </script>
 </body>
